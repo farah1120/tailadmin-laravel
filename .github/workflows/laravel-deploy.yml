@@ -1,59 +1,59 @@
-name: Laravel application (Mysql)
-run-name: Build, Push and Deploy image simple social media
+name: Tailadmin Laravel Deployment
 on:
   push:
-    branches:
-      - main
-env:
-  IMAGE_NAME: "${{ secrets.DOCKER_USER }}/farahamimah13-simple-social-media"
-  DOCKER_USER: "${{ secrets.DOCKER_USER }}"
+    branches: [ "main" ]
 
 jobs:
-  run-mysql-in-docker:
+  deploy:
     runs-on: self-hosted
     steps:
-      - name: Delete container mysql if exist
-        continue-on-error: true
-        run: docker rm -f $(docker ps -a | grep 'mysql\|social\|media' | awk '{print $1}')
-      - name: Running mysql in container
-        run:  docker run -d --name mysql -e MYSQL_ROOT_PASSWORD=password -e MYSQL_DATABASE=social_media -p 3306:3306 mysql:5.7
-      - name: List docker container
-        run: docker ps -a
-
-  build-push-image:
-    needs: run-mysql-in-docker
-    runs-on: self-hosted
-    steps:
-      - name: Check out repository code
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Cleanup Disk Space
+      - name: Setup Env
+        run: |
+          cp .env.example .env
+          sed -i 's/DB_HOST=127.0.0.1/DB_HOST=mysql_db/' .env
+          sed -i 's/DB_DATABASE=laravel/DB_DATABASE=tailadmin/' .env
+          sed -i 's/DB_USERNAME=root/DB_USERNAME=user/' .env
+          sed -i 's/DB_PASSWORD=/DB_PASSWORD=password/' .env
+
+      - name: Cleanup & Build Image
         run: |
           docker system prune -f
-          docker builder prune -f
+          docker build -t farah1504_docker-tailadmin-laravel:beta .
 
-      - name: Build Image
-        run: docker build -t $IMAGE_NAME .
-
-      - name: List Image
-        run: docker image ls
-
-      - name: Login to Docker Registry
+      - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASS }}
 
       - name: Push Image
-        run: docker push $IMAGE_NAME
+        run: docker push farah1504_docker-tailadmin-laravel:beta
 
-  deploy-social-media:
-    needs: build-push-image
-    runs-on: self-hosted
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@v4
-      - name: stop and remove existing container
-        run: docker compose down --rmi all
-      - name: start container
-        run: docker compose up -d
+      - name: Run Containers
+        run: |
+          docker rm -f app_tailadmin mysql_db || true
+          
+          # Jalankan Database
+          docker run -d --name mysql_db \
+            -e MYSQL_DATABASE=tailadmin \
+            -e MYSQL_USER=user \
+            -e MYSQL_PASSWORD=password \
+            -e MYSQL_ROOT_PASSWORD=root \
+            --network bridge mysql:8.0
+
+          # Jalankan Aplikasi Laravel di Port 8090
+          docker run -d --name app_tailadmin \
+            -p 8090:8000 \
+            --link mysql_db:mysql_db \
+            --network bridge \
+            farah1504_docker-tailadmin-laravel:beta php artisan serve --host=0.0.0.0
+
+      - name: Finalize Laravel
+        run: |
+          sleep 20
+          docker exec app_tailadmin php artisan key:generate
+          docker exec app_tailadmin php artisan migrate --seed --force
+          docker exec app_tailadmin php artisan storage:link
