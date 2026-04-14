@@ -1,0 +1,34 @@
+FROM php:8.1-fpm
+
+RUN apt-get update && apt-get install -y \
+    libpng-dev \
+    libjpeg-dev \
+    libfreettype6-dev \
+    locales \
+    zip \
+    jpegooptim opting pngquant gifsicle \
+    vim \
+    unzip \
+    git \
+    curl \
+    libonig-dev \
+    libxml2-dev \
+    libzip-dev \
+    libicu-dev \
+    g++ \
+    nodejs \
+    npm \
+
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
+    docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd intl zip
+
+WOKDIR /app
+
+COPY . .
+
+RUN chmod +x install.sh
+RUN ./install.sh
+
+CMD php artisan serve --host=0.0.0.0 --port=8090
+
+EXPOSE 8090
