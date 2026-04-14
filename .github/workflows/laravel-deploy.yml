@@ -29,14 +29,14 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASS }}
 
-      - name: Push Image
-        run: docker push farah1504_docker-tailadmin-laravel:beta
-
+      - name: Build and Push Image
+        run: |
+          docker build -t farah1504/tailadmin-laravel:beta .
+          docker push farah1504/tailadmin-laravel:beta
       - name: Run Containers
         run: |
           docker rm -f app_tailadmin mysql_db || true
 
-          # Jalankan Database
           docker run -d --name mysql_db \
             -e MYSQL_DATABASE=tailadmin \
             -e MYSQL_USER=user \
@@ -44,7 +44,6 @@ jobs:
             -e MYSQL_ROOT_PASSWORD=root \
             --network bridge mysql:8.0
 
-          # Jalankan Aplikasi Laravel di Port 8090
           docker run -d --name app_tailadmin \
             -p 8090:8000 \
             --link mysql_db:mysql_db \
