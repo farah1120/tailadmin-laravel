@@ -35,7 +35,7 @@ jobs:
       - name: Run Containers
         run: |
           docker rm -f app_tailadmin mysql_db || true
-          
+
           # Jalankan Database
           docker run -d --name mysql_db \
             -e MYSQL_DATABASE=tailadmin \
