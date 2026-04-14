@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y \
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
     docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd intl zip
 
-WOKDIR /app
+WORKDIR /app
 
 COPY . .
 
